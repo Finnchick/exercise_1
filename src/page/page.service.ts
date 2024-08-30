@@ -1,8 +1,47 @@
 import { Injectable } from '@nestjs/common';
 import * as fs from "fs";
+import {HttpService} from "@nestjs/axios";
+import {lastValueFrom, map, Observable} from "rxjs";
+import {AxiosResponse} from "axios";
+import {randomInt} from 'crypto'
+import {response} from "express";
+
+export type Post = {
+    userId: number;
+    id: number;
+    title: string;
+    body: string;
+}
+
+export type User = {
+    id: number;
+    name: string;
+    username: string;
+    email: string;
+    address: {
+        street: string;
+        suite: string;
+        city: string;
+        zipcode: string;
+        geo: {
+            lat: string;
+            lng: string;
+        }
+    };
+    phone: string;
+    website: string;
+    company: {
+        name: string;
+        catchPhrase: string;
+        bs: string;
+    }
+}
 
 @Injectable()
 export class PageService {
+
+    constructor(private readonly HttpService: HttpService) {
+    }
 
     id: number = 0;
     createPage(text: string): string {
@@ -22,8 +61,58 @@ export class PageService {
         return `file with file id: ${fileId} was created successfully`
     }
 
-    // getPage(id: number): string {
-    //     fs.createReadStream(`${id}`)
-    //
-    // }
+    async getPage(id: number): Promise<string> {
+
+        const fileReadStream = fs.createReadStream(`${id}`)
+
+        this.id += 1
+        const newId = this.id
+
+        const fileWriteStream = fs.createWriteStream(`${newId}`)
+
+        fileReadStream.pipe(fileWriteStream,{end: false})
+
+        await new Promise<void>((resolve, reject) => {
+            fileReadStream.on('end', async () => {
+                try {
+                    const postObservable = this.getPost();
+                    await lastValueFrom(
+                        postObservable.pipe(
+                            map((response: AxiosResponse<any>) => {
+                                response.data.pipe(fileWriteStream, { end: false });
+                            })
+                        )
+                    );
+
+                    const userObservable = this.getUser();
+                    await lastValueFrom(
+                        userObservable.pipe(
+                            map((response: AxiosResponse<any>) => {
+                                response.data.pipe(fileWriteStream, { end: false });
+                            })
+                        )
+                    );
+
+                    fileWriteStream.end();
+                    resolve();
+                } catch (error) {
+                    reject(error);
+                }
+            });
+
+            fileReadStream.on('error', reject);
+        });
+
+        return `${newId}`
+    }
+
+    getPost(): Observable<AxiosResponse<Post>> {
+        const postId = randomInt(1, 100)
+        return this.HttpService.get(`https://jsonplaceholder.typicode.com/posts/${postId}`, {responseType: "stream"})
+    }
+
+    getUser(): Observable<AxiosResponse<User>> {
+        const userId = randomInt(1, 10)
+        return this.HttpService.get(`https://jsonplaceholder.typicode.com/users/${userId}`, {responseType: "stream"})
+    }
 }

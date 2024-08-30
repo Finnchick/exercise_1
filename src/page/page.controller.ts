@@ -14,9 +14,8 @@ export class PageController {
     constructor(private readonly pageService: PageService) {
     }
     @Get('/:id')
-    getPage(@Param() params: getPageParams): string {
-
-        return "this must return a page"
+    async getPage(@Param() params: getPageParams): Promise<string> {
+        return await this.pageService.getPage(Number(params.id))
     }
 
     @Post('/')
