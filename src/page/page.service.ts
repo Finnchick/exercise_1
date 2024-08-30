@@ -72,47 +72,33 @@ export class PageService {
 
         fileReadStream.pipe(fileWriteStream,{end: false})
 
-        await new Promise<void>((resolve, reject) => {
             fileReadStream.on('end', async () => {
                 try {
-                    const postObservable = this.getPost();
-                    await lastValueFrom(
-                        postObservable.pipe(
-                            map((response: AxiosResponse<any>) => {
-                                response.data.pipe(fileWriteStream, { end: false });
-                            })
-                        )
-                    );
+                    const {data: user} = await this.getUser();
 
-                    const userObservable = this.getUser();
-                    await lastValueFrom(
-                        userObservable.pipe(
-                            map((response: AxiosResponse<any>) => {
-                                response.data.pipe(fileWriteStream, { end: false });
-                            })
-                        )
-                    );
+
+                    const {data: post} = await this.getPost();
+
+                    fileWriteStream.write(JSON.stringify(user))
+                    fileWriteStream.write(JSON.stringify(post))
 
                     fileWriteStream.end();
-                    resolve();
                 } catch (error) {
-                    reject(error);
+                    console.log(error)
                 }
             });
 
-            fileReadStream.on('error', reject);
-        });
 
         return `${newId}`
     }
 
-    getPost(): Observable<AxiosResponse<Post>> {
+    async getPost(): Promise<AxiosResponse<Post>> {
         const postId = randomInt(1, 100)
-        return this.HttpService.get(`https://jsonplaceholder.typicode.com/posts/${postId}`, {responseType: "stream"})
+        return lastValueFrom(this.HttpService.get(`https://jsonplaceholder.typicode.com/posts/${postId}`))
     }
 
-    getUser(): Observable<AxiosResponse<User>> {
+    async getUser(): Promise<AxiosResponse<User>> {
         const userId = randomInt(1, 10)
-        return this.HttpService.get(`https://jsonplaceholder.typicode.com/users/${userId}`, {responseType: "stream"})
+        return lastValueFrom(this.HttpService.get(`https://jsonplaceholder.typicode.com/users/${userId}`))
     }
 }
