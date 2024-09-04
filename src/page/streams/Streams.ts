@@ -5,6 +5,7 @@ export interface ResponseInterface {
 }
 
 export class DataTransform extends Transform {
+  // I etot chego rugaesya?
   private apiData: ResponseInterface[];
 
   constructor(apiData: []) {
@@ -15,7 +16,7 @@ export class DataTransform extends Transform {
     this.push(chunk.toString().toLowerCase());
     callback();
   }
-  _flush(callback: TransformCallback) {
+  _flush(callback: TransformCallback): void {
     this.push(
       this.apiData.map((response) => JSON.stringify(response.data)).join(''),
     );
