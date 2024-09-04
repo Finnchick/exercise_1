@@ -1,25 +1,33 @@
-import {Body, Controller, Get, Param, Post} from '@nestjs/common';
-import {PageService} from "./page.service";
-
-export type getPageParams = {
-    id: string;
-}
-
-export type createPageDTO = {
-    text: string;
-}
+import {
+  Body,
+  Controller,
+  Get,
+  InternalServerErrorException,
+  Param,
+  Post,
+} from '@nestjs/common';
+import { PageService } from './page.service';
+import { CreatePageDto } from './DTO/CreatePageDto';
+import { GetPageParams } from './DTO/GetPageParams';
 
 @Controller('page')
 export class PageController {
-    constructor(private readonly pageService: PageService) {
+  constructor(private readonly pageService: PageService) {}
+  @Get('/:id')
+  async getPage(@Param() params: GetPageParams): Promise<string> {
+    try {
+      return await this.pageService.getPage(Number(params.id));
+    } catch (error) {
+      throw new InternalServerErrorException(error);
     }
-    @Get('/:id')
-    async getPage(@Param() params: getPageParams): Promise<string> {
-        return await this.pageService.getPage(Number(params.id))
-    }
+  }
 
-    @Post('/')
-    createPage(@Body() createPageDTO: createPageDTO): string {
-        return this.pageService.createPage(createPageDTO.text)
+  @Post('/')
+  async createPage(@Body() createPageDTO: CreatePageDto): Promise<string> {
+    try {
+      return await this.pageService.createPage(createPageDTO.text);
+    } catch (error) {
+      throw new InternalServerErrorException(error);
     }
+  }
 }

@@ -1,104 +1,119 @@
 import { Injectable } from '@nestjs/common';
-import * as fs from "fs";
-import {HttpService} from "@nestjs/axios";
-import {lastValueFrom, map, Observable} from "rxjs";
-import {AxiosResponse} from "axios";
-import {randomInt} from 'crypto'
-import {response} from "express";
+import * as fs from 'fs';
+import { access } from 'node:fs/promises';
+import { HttpService } from '@nestjs/axios';
+import { lastValueFrom } from 'rxjs';
+import { AxiosResponse } from 'axios';
+import { randomInt } from 'crypto';
+import { DataTransform } from './streams/Streams';
+import * as util from 'util';
+import * as stream from 'stream';
 
 export type Post = {
-    userId: number;
-    id: number;
-    title: string;
-    body: string;
-}
+  userId: number;
+  id: number;
+  title: string;
+  body: string;
+};
 
 export type User = {
-    id: number;
-    name: string;
-    username: string;
-    email: string;
-    address: {
-        street: string;
-        suite: string;
-        city: string;
-        zipcode: string;
-        geo: {
-            lat: string;
-            lng: string;
-        }
+  id: number;
+  name: string;
+  username: string;
+  email: string;
+  address: {
+    street: string;
+    suite: string;
+    city: string;
+    zipcode: string;
+    geo: {
+      lat: string;
+      lng: string;
     };
-    phone: string;
-    website: string;
-    company: {
-        name: string;
-        catchPhrase: string;
-        bs: string;
-    }
-}
+  };
+  phone: string;
+  website: string;
+  company: {
+    name: string;
+    catchPhrase: string;
+    bs: string;
+  };
+};
 
 @Injectable()
 export class PageService {
+  constructor(private readonly HttpService: HttpService) {}
 
-    constructor(private readonly HttpService: HttpService) {
+  id: number = 0;
+  async createPage(text: string): Promise<string> {
+    const fileId = this.id;
+    const writableFile = fs.createWriteStream(`${fileId}`);
+    this.id += 1;
+
+    return new Promise((resolve, reject) => {
+      writableFile.write(text);
+      writableFile.end();
+
+      writableFile.on('finish', () => {
+        resolve(`file with file id: ${fileId} was created successfully`);
+      });
+      writableFile.on('error', (err) => {
+        reject(err);
+      });
+    });
+  }
+
+  async getPage(id: number): Promise<string> {
+    const pipeline = util.promisify(stream.pipeline);
+
+    try {
+      await access(`${id}`);
+    } catch (error) {
+      console.error(error);
+      throw new Error("'file doesn't exist");
     }
 
-    id: number = 0;
-    createPage(text: string): string {
-        const fileId = this.id
-        const writableFile = fs.createWriteStream(`${fileId}`)
-        this.id += 1
-        writableFile.write(text)
-        writableFile.end()
+    const fileReadStream = fs.createReadStream(`${id}`);
+    this.id += 1;
+    const newId = this.id;
 
-        writableFile.on('finish', () => {
-            console.log('finished')
-        })
-        writableFile.on('error', (err) => {
-            console.log(err)
-        })
-
-        return `file with file id: ${fileId} was created successfully`
+    // read => transform => write
+    let results;
+    try {
+      results = await Promise.all([this.getUser(), this.getPost()]);
+    } catch (error) {
+      console.error(error);
+      throw new Error('error while fetching data');
     }
 
-    async getPage(id: number): Promise<string> {
+    const dataTransform = new DataTransform(results);
 
-        const fileReadStream = fs.createReadStream(`${id}`)
+    const fileWriteStream = fs.createWriteStream(`${newId}`);
 
-        this.id += 1
-        const newId = this.id
-
-        const fileWriteStream = fs.createWriteStream(`${newId}`)
-
-        fileReadStream.pipe(fileWriteStream,{end: false})
-
-            fileReadStream.on('end', async () => {
-                try {
-                    const {data: user} = await this.getUser();
-
-
-                    const {data: post} = await this.getPost();
-
-                    fileWriteStream.write(JSON.stringify(user))
-                    fileWriteStream.write(JSON.stringify(post))
-
-                    fileWriteStream.end();
-                } catch (error) {
-                    console.log(error)
-                }
-            });
-
-
-        return `${newId}`
+    try {
+      await pipeline(fileReadStream, dataTransform, fileWriteStream); // Pochemu ono rugaetsya?
+      return `${newId}`;
+    } catch (error) {
+      console.error(error);
+      throw new Error('error while processing file');
     }
+  }
 
-    async getPost(): Promise<AxiosResponse<Post>> {
-        const postId = randomInt(1, 100)
-        return lastValueFrom(this.HttpService.get(`https://jsonplaceholder.typicode.com/posts/${postId}`))
-    }
+  async getPost(): Promise<AxiosResponse<Post>> {
+    const postId = randomInt(1, 100);
+    return lastValueFrom(
+      this.HttpService.get(
+        `https://jsonplaceholder.typicode.com/posts/${postId}`,
+      ),
+    );
+  }
 
-    async getUser(): Promise<AxiosResponse<User>> {
-        const userId = randomInt(1, 10)
-        return lastValueFrom(this.HttpService.get(`https://jsonplaceholder.typicode.com/users/${userId}`))
-    }
+  async getUser(): Promise<AxiosResponse<User>> {
+    const userId = randomInt(1, 10);
+    return lastValueFrom(
+      this.HttpService.get(
+        `https://jsonplaceholder.typicode.com/users/${userId}`,
+      ),
+    );
+  }
 }
