@@ -1,6 +1,6 @@
-import { IsNumberString } from 'class-validator';
+import { IsNumber } from 'class-validator';
 
 export class GetPageParams {
-  @IsNumberString()
+  @IsNumber()
   id: number;
 }
