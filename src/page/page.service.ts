@@ -1,18 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import * as fs from 'fs';
 import { access } from 'node:fs/promises';
 import { HttpService } from '@nestjs/axios';
-import { lastValueFrom } from 'rxjs';
-import { AxiosResponse } from 'axios';
-import { randomInt } from 'crypto';
 import { DataTransform } from './streams/Streams';
 import { pipeline } from 'stream/promises';
-import { Post, User } from './pageExternalTypes';
+import { PageExternalDataService } from './PageExternalData.service';
 
 @Injectable()
 export class PageService {
-  constructor(private readonly HttpService: HttpService) {}
+  constructor(
+    private readonly HttpService: HttpService,
+    private readonly pageExternalDataService: PageExternalDataService,
+  ) {}
 
+  private readonly logger = new Logger(PageService.name);
   id: number = 0;
   async createPage(text: string): Promise<string> {
     const fileId = this.id;
@@ -24,9 +25,16 @@ export class PageService {
       writableFile.end();
 
       writableFile.on('finish', () => {
+        this.logger.log(
+          `file with file id: ${fileId} was created successfully`,
+        );
+
         resolve(`file with file id: ${fileId} was created successfully`);
       });
       writableFile.on('error', (err) => {
+        this.logger.error(`error while creating file`, err.stack);
+        this.logger.debug(err);
+
         reject(err);
       });
     });
@@ -35,9 +43,13 @@ export class PageService {
   async getPage(id: number): Promise<string> {
     try {
       await access(`${id}`);
+
+      this.logger.log(`file exists`);
     } catch (error) {
-      console.error(error);
-      throw new Error("'file doesn't exist");
+      this.logger.error(`file doesn't exist`);
+      this.logger.debug(error);
+
+      throw new NotFoundException('file not found');
     }
 
     const fileReadStream = fs.createReadStream(`${id}`);
@@ -46,10 +58,18 @@ export class PageService {
 
     // read => transform => write
     let results;
+
     try {
-      results = await Promise.all([this.getUser(), this.getPost()]);
+      results = await Promise.all([
+        this.pageExternalDataService.getUser(),
+        this.pageExternalDataService.getPost(),
+      ]);
+      this.logger.log('data fetched successfully');
     } catch (error) {
-      console.error(error);
+      console.log(error);
+      this.logger.error('error while fetching data');
+      this.logger.debug(error);
+
       throw new Error('error while fetching data');
     }
 
@@ -59,28 +79,15 @@ export class PageService {
 
     try {
       await pipeline(fileReadStream, dataTransform, fileWriteStream);
+
+      this.logger.log(`file ${newId} writed successfully`);
+
       return `${newId}`;
     } catch (error) {
-      console.error(error);
+      this.logger.error('error while processing file');
+      this.logger.debug(error);
+
       throw new Error('error while processing file');
     }
-  }
-
-  async getPost(): Promise<AxiosResponse<Post>> {
-    const postId = randomInt(1, 100);
-    return lastValueFrom(
-      this.HttpService.get(
-        `https://jsonplaceholder.typicode.com/posts/${postId}`,
-      ),
-    );
-  }
-
-  async getUser(): Promise<AxiosResponse<User>> {
-    const userId = randomInt(1, 10);
-    return lastValueFrom(
-      this.HttpService.get(
-        `https://jsonplaceholder.typicode.com/users/${userId}`,
-      ),
-    );
   }
 }
