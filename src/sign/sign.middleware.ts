@@ -22,7 +22,7 @@ export class SignMiddleware implements NestMiddleware {
         xSign,
         req.url + this.configService.get('KEY'),
       );
-      res.status(403).send('x-sign header is invalid');
+      res.status(401).send('x-sign header is invalid');
     } else {
       next();
     }
