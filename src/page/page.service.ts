@@ -6,39 +6,8 @@ import { lastValueFrom } from 'rxjs';
 import { AxiosResponse } from 'axios';
 import { randomInt } from 'crypto';
 import { DataTransform } from './streams/Streams';
-import * as util from 'util';
-import * as stream from 'stream';
-
-export type Post = {
-  userId: number;
-  id: number;
-  title: string;
-  body: string;
-};
-
-export type User = {
-  id: number;
-  name: string;
-  username: string;
-  email: string;
-  address: {
-    street: string;
-    suite: string;
-    city: string;
-    zipcode: string;
-    geo: {
-      lat: string;
-      lng: string;
-    };
-  };
-  phone: string;
-  website: string;
-  company: {
-    name: string;
-    catchPhrase: string;
-    bs: string;
-  };
-};
+import { pipeline } from 'stream/promises';
+import { Post, User } from './pageExternalTypes';
 
 @Injectable()
 export class PageService {
@@ -64,8 +33,6 @@ export class PageService {
   }
 
   async getPage(id: number): Promise<string> {
-    const pipeline = util.promisify(stream.pipeline);
-
     try {
       await access(`${id}`);
     } catch (error) {
@@ -91,7 +58,7 @@ export class PageService {
     const fileWriteStream = fs.createWriteStream(`${newId}`);
 
     try {
-      await pipeline(fileReadStream, dataTransform, fileWriteStream); // Pochemu ono rugaetsya?
+      await pipeline(fileReadStream, dataTransform, fileWriteStream);
       return `${newId}`;
     } catch (error) {
       console.error(error);
