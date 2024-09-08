@@ -1,18 +1,21 @@
 import { Transform, TransformCallback } from 'stream';
 
 export interface ResponseInterface {
-  data: object;
+  data: Record<string, unknown>;
 }
 
 export class DataTransform extends Transform {
-  // I etot chego rugaesya?
   private apiData: ResponseInterface[];
 
   constructor(apiData: []) {
     super();
     this.apiData = apiData;
   }
-  _transform(chunk: any, encoding: string, callback: TransformCallback): void {
+  _transform(
+    chunk: any,
+    encoding: BufferEncoding,
+    callback: TransformCallback,
+  ): void {
     this.push(chunk.toString().toLowerCase());
     callback();
   }
