@@ -3,6 +3,6 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class CreatePageDto {
   @IsString()
-  @ApiProperty({ required: true, nullable: false })
+  @ApiProperty()
   text: string;
 }

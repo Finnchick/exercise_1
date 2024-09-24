@@ -3,15 +3,18 @@ import {
   Catch,
   ExceptionFilter,
   HttpException,
+  HttpStatus,
   Logger,
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 
 @Catch()
 export class AllExceptionFilter implements ExceptionFilter {
-  constructor(private readonly httpAdapterHost: HttpAdapterHost) {}
+  constructor(
+    private readonly httpAdapterHost: HttpAdapterHost,
+    private readonly logger = new Logger(AllExceptionFilter.name),
+  ) {}
 
-  private readonly logger = new Logger(AllExceptionFilter.name);
   catch(exception: unknown, host: ArgumentsHost): void {
     const { httpAdapter } = this.httpAdapterHost;
 
@@ -30,7 +33,7 @@ export class AllExceptionFilter implements ExceptionFilter {
       };
 
       httpAdapter.reply(ctx.getResponse(), responseBody, httpStatus);
-    } else if (exception instanceof Error) {
+    } else {
       this.logger.error(
         exception.message,
         exception.stack,
@@ -38,22 +41,16 @@ export class AllExceptionFilter implements ExceptionFilter {
       );
 
       const responseBody = {
-        message: exception.message,
-        statusCode: 500,
-        timestamp: new Date().toISOString(),
-      };
-
-      httpAdapter.reply(ctx.getResponse(), responseBody, 500);
-    } else {
-      this.logger.error(exception);
-
-      const responseBody = {
         message: 'Internal server error blin',
-        statusCode: 500,
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         timestamp: new Date().toISOString(),
       };
 
-      httpAdapter.reply(ctx.getResponse(), responseBody, 500);
+      httpAdapter.reply(
+        ctx.getResponse(),
+        responseBody,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }

@@ -3,7 +3,7 @@ import { Post, User } from './pageExternalTypes';
 import { randomInt } from 'crypto';
 import { lastValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
-import { generatePostUrl, generateUserUrl } from '../url';
+import { generatePostUrl, generateUserUrl } from './api-external.meta';
 import { Injectable } from '@nestjs/common';
 
 @Injectable()

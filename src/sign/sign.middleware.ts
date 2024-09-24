@@ -1,11 +1,14 @@
-import { Injectable, NestMiddleware } from '@nestjs/common';
+import { Injectable, Logger, NestMiddleware } from '@nestjs/common';
 import { NextFunction, Request, Response } from 'express';
 import { createHash } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class SignMiddleware implements NestMiddleware {
-  constructor(private configService: ConfigService) {}
+  constructor(
+    private configService: ConfigService,
+    private readonly logger = new Logger(SignMiddleware.name),
+  ) {}
   use(req: Request, res: Response, next: NextFunction) {
     const hash = createHash('sha256');
     const xSign = req.headers['x-sign'];
@@ -17,7 +20,7 @@ export class SignMiddleware implements NestMiddleware {
     hash.update(req.url + this.configService.get('KEY'));
 
     if (hash.digest('hex') !== xSign) {
-      console.error(
+      this.logger.error(
         'x-sign header is invalid',
         xSign,
         req.url + this.configService.get('KEY'),

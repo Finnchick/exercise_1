@@ -11,10 +11,10 @@ export class PageService {
   constructor(
     private readonly HttpService: HttpService,
     private readonly pageExternalDataService: PageExternalDataService,
+    private readonly logger = new Logger(PageService.name),
   ) {}
 
-  private readonly logger = new Logger(PageService.name);
-  id: number = 0;
+  private id: number = 0;
   async createPage(text: string): Promise<string> {
     const fileId = this.id;
     const writableFile = fs.createWriteStream(`${fileId}`);
@@ -43,8 +43,6 @@ export class PageService {
   async getPage(id: number): Promise<string> {
     try {
       await access(`${id}`);
-
-      this.logger.log(`file exists`);
     } catch (error) {
       this.logger.error(`file doesn't exist`);
       this.logger.debug(error);

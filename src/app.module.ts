@@ -13,6 +13,7 @@ import * as Joi from 'joi';
       validationSchema: Joi.object({
         KEY: Joi.string().required(),
         PORT: Joi.number().port().default(3000),
+        SWAGGER_ENABLED: Joi.boolean().default(true),
       }),
       isGlobal: true,
     }),
